@@ -33,6 +33,10 @@ struct DiskSection: View {
     @State
     private var volumes: [Volume] = []
 
+    private let timer = Timer.publish(
+        every: 10 /* seconds */, on: .main, in: .common
+    ).autoconnect()
+
     var body: some View {
         VStack {
             ForEach(self.volumes, id: \.url) { vol in
@@ -49,6 +53,11 @@ struct DiskSection: View {
         }
         .task {
             self.startBackgroundTask()
+        }
+        .onReceive(self.timer) { _ in
+            DispatchQueue.global(qos: .utility).async {
+                self.refreshVolumes()
+            }
         }
     }
 
@@ -123,7 +132,8 @@ struct DiskSection: View {
             do {
                 try NSWorkspace.shared.unmountAndEjectDevice(at: volume.url)
             } catch let err {
-                MessageBox.error("Failed to eject \(volume.name). Error: \(err)")
+                MessageBox.error(
+                    "Failed to eject \(volume.name). Error: \(err)")
             }
         }
     }
