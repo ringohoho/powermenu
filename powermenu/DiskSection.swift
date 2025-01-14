@@ -17,7 +17,7 @@ private struct Volume {
 
     var shortDescription: String {
         if self.isReadOnly {
-            return self.name
+            return "\(self.name): read-only"
         } else {
             let used = ByteCountFormatter.string(
                 fromByteCount: self.capacityBytes - self.availableBytes,
@@ -36,7 +36,15 @@ struct DiskSection: View {
     var body: some View {
         VStack {
             ForEach(self.volumes, id: \.url) { vol in
-                Button(vol.shortDescription) {}
+                if vol.isEjectable {
+                    Menu(vol.shortDescription) {
+                        Button("Eject") {
+                            self.ejectVolume(vol)
+                        }
+                    }
+                } else {
+                    Button(vol.shortDescription) {}
+                }
             }
         }
         .task {
@@ -107,5 +115,16 @@ struct DiskSection: View {
             }
         }
         self.volumes = volumes
+    }
+
+    private func ejectVolume(_ volume: Volume) {
+        print("ejecting \"\(volume.name)\"")
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                try NSWorkspace.shared.unmountAndEjectDevice(at: volume.url)
+            } catch let err {
+                MessageBox.error("Failed to eject \(volume.name). Error: \(err)")
+            }
+        }
     }
 }
