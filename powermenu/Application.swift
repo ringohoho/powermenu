@@ -9,8 +9,6 @@ import SwiftUI
 
 @main
 struct Application: App {
-    @State private var command: String = "a"
-
     var body: some Scene {
         MenuBarExtra {
             MainMenu()

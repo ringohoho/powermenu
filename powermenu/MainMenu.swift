@@ -12,6 +12,10 @@ struct MainMenu: View {
 
     var body: some View {
         VStack {
+            Section("Disk") {
+                DiskSection()
+            }
+
             Menu {
                 if self.mountedVolumes.isEmpty {
                     Text("Empty")
@@ -23,7 +27,7 @@ struct MainMenu: View {
                     }
                 }
             } label: {
-                Text("Eject Mounted Volumes")
+                Text("Eject")
             }
             .onAppear {
                 self.refreshMountedVolumes()
@@ -39,6 +43,8 @@ struct MainMenu: View {
                 .volumeLocalizedNameKey,
                 .volumeIsEjectableKey,
                 .volumeIsRemovableKey,
+                .volumeTotalCapacityKey,
+                .volumeAvailableCapacityKey,
             ]
             let resKeySet = Set(resKeys)
 
@@ -48,6 +54,7 @@ struct MainMenu: View {
                 includingResourceValuesForKeys: resKeys,
                 options: [.skipHiddenVolumes])
             {
+                //                print("paths: \(paths)")
                 for path in paths {
                     let res = try? path.resourceValues(
                         forKeys: resKeySet)
