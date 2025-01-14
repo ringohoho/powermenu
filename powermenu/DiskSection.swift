@@ -40,62 +40,72 @@ struct DiskSection: View {
             }
         }
         .task {
-            self.foo()
+            self.startBackgroundTask()
         }
     }
 
+    @State
     private var monitor: DirectoryMonitor? = nil
 
-    private func foo() {
+    private func startBackgroundTask() {
         DispatchQueue.global(qos: .utility).async {
-            let resKeys: [URLResourceKey] = [
-                .volumeNameKey,
-                .volumeLocalizedNameKey,
-                .volumeIsEjectableKey,
-                .volumeIsRemovableKey,
-                .volumeIsInternalKey,
-                .volumeIsReadOnlyKey,
-                .volumeTotalCapacityKey,
-                .volumeAvailableCapacityKey,
-                .volumeAvailableCapacityForImportantUsageKey,
-            ]
-            let resKeySet = Set(resKeys)
-
-            var volumes: [Volume] = []
-            if let urls = FileManager.default.mountedVolumeURLs(
-                includingResourceValuesForKeys: resKeys,
-                options: [.skipHiddenVolumes])
-            {
-                for url in urls {
-                    guard let res = try? url.resourceValues(forKeys: resKeySet)
-                    else {
-                        continue
-                    }
-
-                    if res.volumeIsInternal == nil {
-                        // this is a virtual disk, not a physical one
-                        if res.volumeIsEjectable == nil
-                            || !res.volumeIsEjectable!
-                        {
-                            // it's also not ejectable, let's skip it
-                            continue
-                        }
-                    }
-
-                    volumes.append(
-                        Volume(
-                            url: url, name: res.volumeLocalizedName!,
-                            capacityBytes: Int64(res.volumeTotalCapacity!),
-                            availableBytes: max(
-                                res.volumeAvailableCapacityForImportantUsage!,
-                                Int64(res.volumeAvailableCapacity!)),
-                            isEjectable: res.volumeIsEjectable!,
-                            isReadOnly: res.volumeIsReadOnly!
-                        )
-                    )
-                }
+            self.refreshVolumes()
+            self.monitor = DirectoryMonitor(
+                url: URL(filePath: "/Volumes")!, eventMask: .all
+            ) {
+                self.refreshVolumes()
             }
-            self.volumes = volumes
         }
+    }
+
+    private func refreshVolumes() {
+        let resKeys: [URLResourceKey] = [
+            .volumeNameKey,
+            .volumeLocalizedNameKey,
+            .volumeIsRootFileSystemKey,
+            .volumeIsEjectableKey,
+            .volumeIsRemovableKey,
+            .volumeIsInternalKey,
+            .volumeIsReadOnlyKey,
+            .volumeTotalCapacityKey,
+            .volumeAvailableCapacityKey,
+            .volumeAvailableCapacityForImportantUsageKey,
+        ]
+        let resKeySet = Set(resKeys)
+
+        var volumes: [Volume] = []
+        if let urls = FileManager.default.mountedVolumeURLs(
+            includingResourceValuesForKeys: resKeys,
+            options: [.skipHiddenVolumes])
+        {
+            for url in urls {
+                guard let res = try? url.resourceValues(forKeys: resKeySet)
+                else {
+                    continue
+                }
+
+                if !(res.volumeIsRootFileSystem!
+                    || (url.pathComponents.count == 3
+                        && url.pathComponents[0] == "/"
+                        && url.pathComponents[1] == "Volumes"))
+                {
+                    // ignore volumes that are not mounted in to `/Volumes`
+                    continue
+                }
+
+                volumes.append(
+                    Volume(
+                        url: url, name: res.volumeLocalizedName!,
+                        capacityBytes: Int64(res.volumeTotalCapacity!),
+                        availableBytes: max(
+                            res.volumeAvailableCapacityForImportantUsage!,
+                            Int64(res.volumeAvailableCapacity!)),
+                        isEjectable: res.volumeIsEjectable!,
+                        isReadOnly: res.volumeIsReadOnly!
+                    )
+                )
+            }
+        }
+        self.volumes = volumes
     }
 }
