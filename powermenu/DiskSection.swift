@@ -15,16 +15,31 @@ private struct Volume {
     var isEjectable: Bool
     var isReadOnly: Bool  // don't need to show capacity for read only volumes
 
-    var shortDescription: String {
+    var usedBytes: Int64 {
+        self.capacityBytes - self.availableBytes
+    }
+
+    var capacityText: String {
+        ByteCountFormatter.string(
+            fromByteCount: self.capacityBytes, countStyle: .file)
+    }
+
+    var usedText: String {
+        ByteCountFormatter.string(
+            fromByteCount: self.usedBytes,
+            countStyle: .file)
+    }
+
+    var availText: String {
+        ByteCountFormatter.string(
+            fromByteCount: self.availableBytes, countStyle: .file)
+    }
+
+    var percent: Double {
         if self.isReadOnly {
-            return "\(self.name): read-only"
+            return 100
         } else {
-            let used = ByteCountFormatter.string(
-                fromByteCount: self.capacityBytes - self.availableBytes,
-                countStyle: .file)
-            let avail = ByteCountFormatter.string(
-                fromByteCount: self.availableBytes, countStyle: .file)
-            return "\(self.name): \(used) used, \(avail) free"
+            return Double(self.usedBytes) / Double(self.capacityBytes) * 100
         }
     }
 }
@@ -40,14 +55,18 @@ struct DiskSection: View {
     var body: some View {
         VStack {
             ForEach(self.volumes, id: \.url) { vol in
-                if vol.isEjectable {
-                    Menu(vol.shortDescription) {
+                let percent =
+                    vol.isReadOnly ? "readonly" : "\(vol.percent.rounded())%"
+                Menu("\(vol.name): \(percent)") {
+                    if !vol.isReadOnly {
+                        Text("Total: \(vol.capacityText)")
+                        Text("Free: \(vol.availText)")
+                    }
+                    if vol.isEjectable {
                         Button("Eject") {
                             self.ejectVolume(vol)
                         }
                     }
-                } else {
-                    Button(vol.shortDescription) {}
                 }
             }
         }
