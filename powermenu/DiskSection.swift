@@ -56,7 +56,8 @@ struct DiskSection: View {
         VStack {
             ForEach(self.volumes, id: \.url) { vol in
                 let percent =
-                    vol.isReadOnly ? "readonly" : "\(vol.percent.rounded())%"
+                    vol.isReadOnly
+                    ? "readonly" : "\(Int(vol.percent.rounded()))%"
                 Menu("\(vol.name): \(percent)") {
                     if !vol.isReadOnly {
                         Text("Total: \(vol.capacityText)")
