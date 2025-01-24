@@ -12,6 +12,9 @@ struct MainMenu: View {
 
     var body: some View {
         VStack {
+            Section("Network") {
+                NetworkSection()
+            }
             Section("Disk") {
                 DiskSection()
             }
