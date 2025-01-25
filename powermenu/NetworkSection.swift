@@ -20,8 +20,8 @@ struct NetworkSection: View {
 
     var body: some View {
         VStack {
-            Text("China Mainland: \(self.chinaMainlanOk ? "OK" : "Failed")")
-            Text("Global: \(self.globalOk ? "OK" : "Failed")")
+            Button("China Mainland: \(self.chinaMainlanOk ? "OK" : "Failed")") {}
+            Button("Global: \(self.globalOk ? "OK" : "Failed")") {}
         }
         .task {
             self.checkNetworkConnection()

@@ -44,6 +44,8 @@ private struct Volume {
     }
 }
 
+let smallFont: Font = .system(size: 12)
+
 struct DiskSection: View {
     @State
     private var volumes: [Volume] = []
@@ -55,19 +57,18 @@ struct DiskSection: View {
     var body: some View {
         VStack {
             ForEach(self.volumes, id: \.url) { vol in
-                let percent =
-                    vol.isReadOnly
-                    ? "readonly" : "\(Int(vol.percent.rounded()))%"
-                Menu("\(vol.name): \(percent)") {
-                    if !vol.isReadOnly {
-                        Text("Total: \(vol.capacityText)")
-                        Text("Free: \(vol.availText)")
-                    }
-                    if vol.isEjectable {
+                if vol.isEjectable {
+                    Menu("\(vol.name)") {
                         Button("Eject") {
                             self.ejectVolume(vol)
                         }
                     }
+                } else {
+                    Button("\(vol.name)") {}
+                }
+                if !vol.isReadOnly {
+                    Text("  Total: \(vol.capacityText)").font(smallFont)
+                    Text("  Free: \(vol.availText)").font(smallFont)
                 }
             }
         }
@@ -110,7 +111,9 @@ struct DiskSection: View {
         ]
         let resKeySet = Set(resKeys)
 
-        var volumes: [Volume] = []
+        var touchedVolumes: Set<URL> = Set()
+        var newVolumes: [Volume] = []
+
         if let urls = FileManager.default.mountedVolumeURLs(
             includingResourceValuesForKeys: resKeys,
             options: [.skipHiddenVolumes])
@@ -130,20 +133,35 @@ struct DiskSection: View {
                     continue
                 }
 
-                volumes.append(
-                    Volume(
-                        url: url, name: res.volumeLocalizedName!,
-                        capacityBytes: Int64(res.volumeTotalCapacity!),
-                        availableBytes: max(
-                            res.volumeAvailableCapacityForImportantUsage!,
-                            Int64(res.volumeAvailableCapacity!)),
-                        isEjectable: res.volumeIsEjectable!,
-                        isReadOnly: res.volumeIsReadOnly!
+                if var vol = self.volumes.first(where: { $0.url == url }) {
+                    touchedVolumes.insert(vol.url)
+                    // vol.name = res.volumeLocalizedName!
+                    vol.capacityBytes = Int64(res.volumeTotalCapacity!)
+                    vol.availableBytes = max(
+                        res.volumeAvailableCapacityForImportantUsage!,
+                        Int64(res.volumeAvailableCapacity!)
                     )
-                )
+                    vol.isEjectable = res.volumeIsEjectable!
+                    vol.isReadOnly = res.volumeIsReadOnly!
+                } else {
+                    newVolumes.append(
+                        Volume(
+                            url: url, name: res.volumeLocalizedName!,
+                            capacityBytes: Int64(res.volumeTotalCapacity!),
+                            availableBytes: max(
+                                res.volumeAvailableCapacityForImportantUsage!,
+                                Int64(res.volumeAvailableCapacity!)
+                            ),
+                            isEjectable: res.volumeIsEjectable!,
+                            isReadOnly: res.volumeIsReadOnly!
+                        )
+                    )
+                }
             }
         }
-        self.volumes = volumes
+
+        self.volumes.removeAll(where: { !touchedVolumes.contains($0.url) })
+        self.volumes.append(contentsOf: newVolumes)
     }
 
     private func ejectVolume(_ volume: Volume) {
